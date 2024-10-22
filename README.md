@@ -7,6 +7,7 @@
 # Projekte ITL
 - FractionCalculator
 - Hangman
+- JavaDB
 
 # Projekte INF
 - Interfaces_INF
