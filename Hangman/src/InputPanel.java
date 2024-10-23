@@ -38,9 +38,18 @@ public class InputPanel extends JPanel {
     }
 
     private void processInput(String input) {
+        input = input.trim();
+
         if (input.length() == 1 && Character.isLetter(input.charAt(0))) {
-            boolean correctGuess = wordManager.processGuess(input.charAt(0));
-            gameState.addLetterToHistory(input.charAt(0));
+            char guessedLetter = input.charAt(0);
+
+            if (gameState.hasAlreadyGuessed(guessedLetter)) {
+                JOptionPane.showMessageDialog(this, "Du hast diesen Buchstaben bereits geraten.");
+                return;
+            }
+
+            boolean correctGuess = wordManager.processGuess(guessedLetter);
+            gameState.addLetterToHistory(guessedLetter);
             wordLabel.setText(wordManager.getMaskedWord());
             gamePanel.repaint();
 
@@ -52,21 +61,29 @@ public class InputPanel extends JPanel {
                 gameState.incrementFailedAttempts();
             }
 
-            if (gameState.isGameOver()) {
-                int response = JOptionPane.showConfirmDialog(this, "Verloren! Das Wort war: " + wordManager.getCurrentWord() + ". Möchtest du ein neues Spiel starten?", "Spiel beendet", JOptionPane.YES_NO_OPTION);
+        } else if (input.length() > 1) {
+            if (input.equalsIgnoreCase(wordManager.getCurrentWord())) {
+                wordLabel.setText(wordManager.getCurrentWord());
+                gamePanel.repaint();
+                JOptionPane.showMessageDialog(this, "Glückwunsch! Du hast das Wort erraten!");
+                int response = JOptionPane.showConfirmDialog(this, "Möchtest du ein neues Spiel starten?", "Spiel gewonnen", JOptionPane.YES_NO_OPTION);
                 if (response == JOptionPane.YES_OPTION) {
                     ((MainFrame) SwingUtilities.getWindowAncestor(this)).startNewGame();
                 } else {
                     System.exit(0);
                 }
+            } else {
+                JOptionPane.showMessageDialog(this, "Falsches Wort!");
+                gameState.incrementFailedAttempts();
             }
-            else if (wordManager.isWordGuessed()) {
-                int response = JOptionPane.showConfirmDialog(this, "Glückwunsch! Du hast das Wort erraten! Möchtest du ein neues Spiel starten?", "Spiel gewonnen", JOptionPane.YES_NO_OPTION);
-                if (response == JOptionPane.YES_OPTION) {
-                    ((MainFrame) SwingUtilities.getWindowAncestor(this)).startNewGame();
-                } else {
-                    System.exit(0);
-                }
+        }
+
+        if (gameState.isGameOver()) {
+            int response = JOptionPane.showConfirmDialog(this, "Verloren! Das Wort war: " + wordManager.getCurrentWord() + ". Möchtest du ein neues Spiel starten?", "Spiel beendet", JOptionPane.YES_NO_OPTION);
+            if (response == JOptionPane.YES_OPTION) {
+                ((MainFrame) SwingUtilities.getWindowAncestor(this)).startNewGame();
+            } else {
+                System.exit(0);
             }
         }
     }

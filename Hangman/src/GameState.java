@@ -17,6 +17,10 @@ public class GameState {
         return letterHistory.toString();
     }
 
+    public boolean hasAlreadyGuessed(char letter) {
+        return letterHistory.contains(letter);
+    }
+
     public void incrementFailedAttempts() {
         failedAttempts++;
     }
