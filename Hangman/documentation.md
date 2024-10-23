@@ -61,3 +61,7 @@
 - **Überlegung:** Die Benutzerführung sollte so gestaltet sein, dass Fehler leicht zu verstehen sind und das Spiel jederzeit nachvollziehbar bleibt.
 - **Probleme:** Sobald ein Buchstabe eingegeben wurde, welcher kleingeschrieben war, aber im Wort groß steht, wurde er als falsch gewertet.
 - **Lösungen:** Implementierung einer Überprüfung in **WordManager**, sodass alle Buchstaben klein gesetzt werden.
+
+### **7. Zusätzliche Features nach der eigentlichen Abgabe**
+- **Features:**
+    - Wörter werden per OpenAI API Anbindung generiert.
