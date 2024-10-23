@@ -73,12 +73,8 @@ public class WordManager {
         "model": "gpt-4o",
         "messages": [
             {
-                "role": "system",
-                "content": "Du bist ein Generator für schwierige deutsche Wörter für ein Hangmanspiel. Gib dem Nutzer jedoch nur und zwar nur dasd eine Wort zurück ohne jeglichen anderen Text. Das ist wichtig!"
-            },
-            {
                 "role": "user",
-                "content": "Gib mir bitte ein schweres, langes Wort für ein Hangmanspiel auf Deutsch. Das Wort darf jedoch nur aus einem Wort bestehen, da mein System keine mehreren Wörter verarbeiten kann."
+                "content": "Gib mir genau ein anspruchsvolles, kreatives und seltenes deutsches Wort für ein Hangman-Spiel. Es darf nur aus einem Wort bestehen und soll nicht zu typisch oder zu bekannt für Hangman-Spiele sein (wie z.B. „Donaudampfschifffahrt“ oder ähnliche Wörter). Gib mir ausschließlich das Wort zurück, ohne jegliche Erklärungen, andere Wörter oder zusätzliche Informationen."
             }
         ]
     }
@@ -91,6 +87,7 @@ public class WordManager {
 
         int responseCode = conn.getResponseCode();
         if (responseCode == HttpsURLConnection.HTTP_OK) {
+            // Erfolgreiche Antwort auslesen
             BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream(), "utf-8"));
             StringBuilder response = new StringBuilder();
             String responseLine;
@@ -98,12 +95,30 @@ public class WordManager {
                 response.append(responseLine.trim());
             }
 
+            // Antwort in der Konsole ausgeben zur Überprüfung
+            System.out.println("Response from API: " + response.toString());
+
+            // Antwort parsen
             JSONObject jsonResponse = new JSONObject(response.toString());
-            String generatedWord = jsonResponse.getJSONArray("choices").getJSONObject(0).getJSONObject("message").getString("content").trim();
+
+            // Die Struktur der Antwort könnte anders sein, daher holen wir uns zuerst das Array "choices"
+            JSONObject firstChoice = jsonResponse.getJSONArray("choices").getJSONObject(0);
+            // Der content ist im Feld "message" unter dem Unterobjekt "content"
+            String generatedWord = firstChoice.getJSONObject("message").getString("content").trim();
 
             return generatedWord;
         } else {
-            throw new Exception("Failed to get a valid response from OpenAI API. HTTP Response code: " + responseCode);
+            // Fehlerantwort auslesen
+            BufferedReader errorReader = new BufferedReader(new InputStreamReader(conn.getErrorStream(), "utf-8"));
+            StringBuilder errorResponse = new StringBuilder();
+            String errorLine;
+            while ((errorLine = errorReader.readLine()) != null) {
+                errorResponse.append(errorLine.trim());
+            }
+
+            // Fehlerantwort und HTTP-Code anzeigen
+            throw new Exception("Error: HTTP " + responseCode + "\n" + "Response: " + errorResponse.toString());
         }
     }
+
 }
