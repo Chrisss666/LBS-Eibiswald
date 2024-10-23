@@ -4,6 +4,7 @@ import java.io.OutputStream;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
+import io.github.cdimascio.dotenv.Dotenv;
 import org.json.JSONObject;
 
 import javax.net.ssl.HttpsURLConnection;
@@ -12,7 +13,9 @@ public class WordManager {
     private List<String> wordList = new ArrayList<>();
     private String currentWord;
     private StringBuilder maskedWord;
-    private final String OPENAI_API_KEY = "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"; // Ersetze dies durch deinen API-Schlüssel
+
+    Dotenv dotenv = Dotenv.load();
+    private final String OPENAI_API_KEY = dotenv.get("OPENAI_API_KEY");
 
     public WordManager() {
         loadNewWord();
