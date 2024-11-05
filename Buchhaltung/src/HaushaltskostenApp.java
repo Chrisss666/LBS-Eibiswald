@@ -5,8 +5,8 @@ import java.sql.*;
 import java.util.Vector;
 
 public class HaushaltskostenApp extends JFrame {
-    private Connection connection;
-    private JTable table;
+    Connection connection;
+    JTable table;
     private DefaultTableModel tableModel;
     private JTextField dateFilterField;
 
@@ -27,7 +27,7 @@ public class HaushaltskostenApp extends JFrame {
         connectDatabase();
 
         // Tabelle und Model
-        tableModel = new DefaultTableModel(new String[]{"ID", "Datum", "Info", "Betrag", "Kategorie"}, 0);
+        tableModel = new DefaultTableModel(new String[]{"ID", "Datum", "Info", "Betrag", "Kategorie", "Art"}, 0);
         table = new JTable(tableModel);
         loadTableData();
 
@@ -40,30 +40,26 @@ public class HaushaltskostenApp extends JFrame {
         JButton addButton = new JButton("Hinzufügen");
         JButton editButton = new JButton("Bearbeiten");
         JButton deleteButton = new JButton("Entfernen");
+        JButton filterButton = new JButton("Filter");
+        JButton resetFilterButton = new JButton("Filter zurücksetzen");
 
         addButton.addActionListener(e -> showAddBookingForm());
         editButton.addActionListener(e -> showEditBookingForm());
         deleteButton.addActionListener(e -> deleteSelectedBooking());
+        filterButton.addActionListener(e -> showFilterDialog());
+        resetFilterButton.addActionListener(e -> loadTableData());
 
         interactionPanel.add(addButton);
         interactionPanel.add(Box.createVerticalStrut(10));
         interactionPanel.add(editButton);
         interactionPanel.add(Box.createVerticalStrut(10));
         interactionPanel.add(deleteButton);
+        interactionPanel.add(Box.createVerticalStrut(10));
+        interactionPanel.add(filterButton);
+        interactionPanel.add(Box.createVerticalStrut(10));
+        interactionPanel.add(resetFilterButton);
 
         add(interactionPanel, BorderLayout.EAST);
-
-        // Filteroptionen unten
-        JPanel filterPanel = new JPanel(new FlowLayout());
-        dateFilterField = new JTextField(10);
-        JButton filterButton = new JButton("Filtern");
-
-        filterButton.addActionListener(e -> filterTableData());
-        filterPanel.add(new JLabel("Filter nach Datum (YYYY-MM-DD):"));
-        filterPanel.add(dateFilterField);
-        filterPanel.add(filterButton);
-
-        add(filterPanel, BorderLayout.SOUTH);
     }
 
     private void connectDatabase() {
@@ -78,9 +74,10 @@ public class HaushaltskostenApp extends JFrame {
         }
     }
 
-    private void loadTableData() {
+    void loadTableData() {
         tableModel.setRowCount(0);
-        String query = "SELECT buchungen.ID, buchungen.`Datum/Zeit`, buchungen.Info, buchungen.Betrag, kategorie.Bezeichnung AS Kategorie " +
+        String query = "SELECT buchungen.ID, buchungen.`Datum/Zeit`, buchungen.Info, buchungen.Betrag, " +
+                "kategorie.Bezeichnung AS Kategorie, kategorie.`Ein/Aus` " +
                 "FROM buchungen INNER JOIN kategorie ON buchungen.KatID = kategorie.ID";
 
         try (Statement stmt = connection.createStatement(); ResultSet rs = stmt.executeQuery(query)) {
@@ -91,6 +88,7 @@ public class HaushaltskostenApp extends JFrame {
                 row.add(rs.getString("Info"));
                 row.add(rs.getDouble("Betrag") + " €");
                 row.add(rs.getString("Kategorie"));
+                row.add(rs.getInt("Ein/Aus") == 1 ? "Einnahme" : "Ausgabe"); // Art basierend auf Ein/Aus festlegen
                 tableModel.addRow(row);
             }
         } catch (SQLException e) {
@@ -98,14 +96,67 @@ public class HaushaltskostenApp extends JFrame {
         }
     }
 
-    private void filterTableData() {
-        String dateFilter = dateFilterField.getText();
+    void showFilterDialog() {
+        JFrame filterFrame = new JFrame("Filter");
+        filterFrame.setSize(300, 150);
+        filterFrame.setLocationRelativeTo(this);
+
+        JPanel panel = new JPanel(new GridLayout(3, 2, 10, 10));
+
+        String[] columns = {"ID", "Datum", "Info", "Betrag", "Kategorie", "Art"};
+        JComboBox<String> columnSelector = new JComboBox<>(columns);
+        JTextField filterValueField = new JTextField();
+        JButton applyFilterButton = new JButton("Anwenden");
+
+        applyFilterButton.addActionListener(e -> {
+            String selectedColumn = columnSelector.getSelectedItem().toString();
+            String filterValue = filterValueField.getText();
+            filterTableData(selectedColumn, filterValue);
+            filterFrame.dispose();
+        });
+
+        panel.add(new JLabel("Spalte:"));
+        panel.add(columnSelector);
+        panel.add(new JLabel("Filterwert:"));
+        panel.add(filterValueField);
+        panel.add(new JLabel());
+        panel.add(applyFilterButton);
+
+        filterFrame.add(panel);
+        filterFrame.setVisible(true);
+    }
+
+    private void filterTableData(String column, String filterValue) {
         tableModel.setRowCount(0);
-        String query = "SELECT buchungen.ID, buchungen.`Datum/Zeit`, buchungen.Info, buchungen.Betrag, kategorie.Bezeichnung AS Kategorie " +
-                "FROM buchungen INNER JOIN kategorie ON buchungen.KatID = kategorie.ID WHERE DATE(`Datum/Zeit`) = ?";
+        String query;
+
+        if ("ID".equals(column) || "Betrag".equals(column)) {
+            query = "SELECT buchungen.ID, buchungen.`Datum/Zeit`, buchungen.Info, buchungen.Betrag, " +
+                    "kategorie.Bezeichnung AS Kategorie, kategorie.`Ein/Aus` " +
+                    "FROM buchungen INNER JOIN kategorie ON buchungen.KatID = kategorie.ID WHERE " + column + " = ?";
+        } else if ("Datum".equals(column)) {
+            query = "SELECT buchungen.ID, buchungen.`Datum/Zeit`, buchungen.Info, buchungen.Betrag, " +
+                    "kategorie.Bezeichnung AS Kategorie, kategorie.`Ein/Aus` " +
+                    "FROM buchungen INNER JOIN kategorie ON buchungen.KatID = kategorie.ID WHERE DATE(`Datum/Zeit`) = ?";
+        } else if ("Art".equals(column)) {
+            int type = "Einnahme".equalsIgnoreCase(filterValue) ? 1 : 0;
+            query = "SELECT buchungen.ID, buchungen.`Datum/Zeit`, buchungen.Info, buchungen.Betrag, " +
+                    "kategorie.Bezeichnung AS Kategorie, kategorie.`Ein/Aus` " +
+                    "FROM buchungen INNER JOIN kategorie ON buchungen.KatID = kategorie.ID WHERE kategorie.`Ein/Aus` = ?";
+            filterValue = String.valueOf(type);
+        } else if ("Kategorie".equals(column)) {
+            query = "SELECT buchungen.ID, buchungen.`Datum/Zeit`, buchungen.Info, buchungen.Betrag, " +
+                    "kategorie.Bezeichnung AS Kategorie, kategorie.`Ein/Aus` " +
+                    "FROM buchungen INNER JOIN kategorie ON buchungen.KatID = kategorie.ID WHERE kategorie.Bezeichnung = ?";
+        } else {
+            query = "SELECT buchungen.ID, buchungen.`Datum/Zeit`, buchungen.Info, buchungen.Betrag, " +
+                    "kategorie.Bezeichnung AS Kategorie, kategorie.`Ein/Aus` " +
+                    "FROM buchungen INNER JOIN kategorie ON buchungen.KatID = kategorie.ID WHERE " + column + " LIKE ?";
+            filterValue = "%" + filterValue + "%"; // Wildcard für LIKE-Filter
+        }
 
         try (PreparedStatement pstmt = connection.prepareStatement(query)) {
-            pstmt.setString(1, dateFilter);
+            pstmt.setString(1, filterValue);
             ResultSet rs = pstmt.executeQuery();
 
             while (rs.next()) {
@@ -113,8 +164,9 @@ public class HaushaltskostenApp extends JFrame {
                 row.add(rs.getInt("ID"));
                 row.add(rs.getTimestamp("Datum/Zeit"));
                 row.add(rs.getString("Info"));
-                row.add(rs.getDouble("Betrag"));
+                row.add(rs.getDouble("Betrag") + " €");
                 row.add(rs.getString("Kategorie"));
+                row.add(rs.getInt("Ein/Aus") == 1 ? "Einnahme" : "Ausgabe"); // Art basierend auf Ein/Aus festlegen
                 tableModel.addRow(row);
             }
         } catch (SQLException e) {
@@ -122,7 +174,7 @@ public class HaushaltskostenApp extends JFrame {
         }
     }
 
-    private void showAddBookingForm() {
+    void showAddBookingForm() {
         JFrame addFrame = new JFrame("Buchung hinzufügen");
         addFrame.setSize(300, 250);
         addFrame.setLocationRelativeTo(this);
@@ -164,7 +216,7 @@ public class HaushaltskostenApp extends JFrame {
         addFrame.setVisible(true);
     }
 
-    private void addBooking(Timestamp datumZeit, String info, double betrag, int katID) {
+    void addBooking(Timestamp datumZeit, String info, double betrag, int katID) {
         String query = "INSERT INTO buchungen (`Datum/Zeit`, Info, Betrag, KatID) VALUES (?, ?, ?, ?)";
 
         try (PreparedStatement pstmt = connection.prepareStatement(query)) {
@@ -178,7 +230,7 @@ public class HaushaltskostenApp extends JFrame {
         }
     }
 
-    private void showEditBookingForm() {
+    void showEditBookingForm() {
         int selectedRow = table.getSelectedRow();
         if (selectedRow == -1) {
             JOptionPane.showMessageDialog(this, "Bitte wählen Sie eine Zeile zum Bearbeiten aus.");
@@ -193,13 +245,17 @@ public class HaushaltskostenApp extends JFrame {
         JPanel panel = new JPanel(new GridLayout(5, 2, 10, 10));
         JTextField datumField = new JTextField(tableModel.getValueAt(selectedRow, 1).toString());
         JTextField infoField = new JTextField(tableModel.getValueAt(selectedRow, 2).toString());
-        JTextField betragField = new JTextField(tableModel.getValueAt(selectedRow, 3).toString());
-        JTextField katIDField = new JTextField(tableModel.getValueAt(selectedRow, 4).toString());
+        String betragString = tableModel.getValueAt(selectedRow, 3).toString().replace(" €", "");
+        JTextField betragField = new JTextField(betragString);
+
+        // Kategorie-Dropdown für die Auswahl
+        JComboBox<String> categoryComboBox = new JComboBox<>(loadCategoryNames());
+        categoryComboBox.setSelectedItem(tableModel.getValueAt(selectedRow, 4));
 
         JButton saveButton = new JButton("Speichern");
         saveButton.addActionListener(e -> {
             try {
-                editBooking(id, Timestamp.valueOf(datumField.getText()), infoField.getText(), Double.parseDouble(betragField.getText()), Integer.parseInt(katIDField.getText()));
+                editBooking(id, Timestamp.valueOf(datumField.getText()), infoField.getText(), Double.parseDouble(betragField.getText()), categoryComboBox.getSelectedItem().toString());
                 editFrame.dispose();
                 loadTableData();
             } catch (Exception ex) {
@@ -213,8 +269,8 @@ public class HaushaltskostenApp extends JFrame {
         panel.add(infoField);
         panel.add(new JLabel("Betrag:"));
         panel.add(betragField);
-        panel.add(new JLabel("Kategorie-ID:"));
-        panel.add(katIDField);
+        panel.add(new JLabel("Kategorie:"));
+        panel.add(categoryComboBox);
         panel.add(new JLabel());
         panel.add(saveButton);
 
@@ -222,7 +278,29 @@ public class HaushaltskostenApp extends JFrame {
         editFrame.setVisible(true);
     }
 
-    private void editBooking(int id, Timestamp datumZeit, String info, double betrag, int katID) {
+    String[] loadCategoryNames() {
+        String query = "SELECT Bezeichnung FROM kategorie";
+        Vector<String> categories = new Vector<>();
+
+        try (Statement stmt = connection.createStatement(); ResultSet rs = stmt.executeQuery(query)) {
+            while (rs.next()) {
+                categories.add(rs.getString("Bezeichnung"));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return categories.toArray(new String[0]);
+    }
+
+    void editBooking(int id, Timestamp datumZeit, String info, double betrag, String kategorieName) {
+        // Kategorie-ID anhand des Namens ermitteln
+        int katID = getCategoryIdByName(kategorieName);
+
+        if (katID == -1) {
+            JOptionPane.showMessageDialog(this, "Kategorie nicht gefunden.", "Fehler", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
         String query = "UPDATE buchungen SET `Datum/Zeit` = ?, Info = ?, Betrag = ?, KatID = ? WHERE ID = ?";
 
         try (PreparedStatement pstmt = connection.prepareStatement(query)) {
@@ -237,7 +315,21 @@ public class HaushaltskostenApp extends JFrame {
         }
     }
 
-    private void deleteSelectedBooking() {
+    private int getCategoryIdByName(String categoryName) {
+        String query = "SELECT ID FROM kategorie WHERE Bezeichnung = ?";
+        try (PreparedStatement pstmt = connection.prepareStatement(query)) {
+            pstmt.setString(1, categoryName);
+            ResultSet rs = pstmt.executeQuery();
+            if (rs.next()) {
+                return rs.getInt("ID");
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return -1;
+    }
+
+    void deleteSelectedBooking() {
         int selectedRow = table.getSelectedRow();
         if (selectedRow == -1) {
             JOptionPane.showMessageDialog(this, "Bitte wählen Sie eine Zeile zum Löschen aus.");
