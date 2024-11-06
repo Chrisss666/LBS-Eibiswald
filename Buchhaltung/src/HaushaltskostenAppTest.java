@@ -7,7 +7,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
-import java.sql.Timestamp;
+import java.sql.Date;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -82,28 +82,28 @@ public class HaushaltskostenAppTest {
 
     @Test
     public void testAddBookingToDatabase() {
-        Timestamp timestamp = Timestamp.valueOf("2024-10-10 12:00:00");
+        Date date = Date.valueOf("2024-10-10");
         String info = "Test Buchung";
         double betrag = 50.0;
         int katID = 1;
 
-        assertDoesNotThrow(() -> app.addBooking(timestamp, info, betrag, katID), "AddBooking should not throw an exception.");
+        assertDoesNotThrow(() -> app.addBooking(date, info, betrag, katID), "AddBooking should not throw an exception.");
     }
 
     @Test
     public void testEditBookingInDatabase() {
         int id = 1;
-        Timestamp timestamp = Timestamp.valueOf("2024-10-15 12:00:00");
+        Date date = Date.valueOf("2024-10-15 12:00:00");
         String info = "Bearbeitete Buchung";
         double betrag = 75.0;
         String kategorieName = "Lebensmittel";
 
-        assertDoesNotThrow(() -> app.editBooking(id, timestamp, info, betrag, kategorieName), "EditBooking should not throw an exception.");
+        assertDoesNotThrow(() -> app.editBooking(id, date, info, betrag, kategorieName), "EditBooking should not throw an exception.");
     }
 
     @Test
     public void testDeleteBookingFromDatabase() {
-        int id = 1;
+        int id = 9;
         String query = "DELETE FROM buchungen WHERE ID = ?";
 
         try (PreparedStatement pstmt = app.connection.prepareStatement(query)) {
@@ -116,6 +116,6 @@ public class HaushaltskostenAppTest {
 
     @Test
     public void testLoadTableData() {
-        assertDoesNotThrow(() -> app.loadTableData(), "LoadTableData should not throw an exception.");
+        assertDoesNotThrow(() -> app.loadTableData(null, null), "LoadTableData should not throw an exception.");
     }
 }
