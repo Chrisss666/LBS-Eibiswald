@@ -27,3 +27,4 @@ replay_pid*
 Slots/*
 Hangman/.env
 DiceGame/*
+DiceGame/.env

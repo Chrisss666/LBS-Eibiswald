@@ -8,6 +8,7 @@
 - FractionCalculator
 - Hangman
 - JavaDB
+- Buchhaltungsprogramm
 
 # Projekte INF
 - Interfaces_INF
